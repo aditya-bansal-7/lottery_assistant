@@ -1,3 +1,5 @@
+pymongo
+uuid
 pyrogram
 tgcrypto
 pyTelegramBotAPI
