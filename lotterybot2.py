@@ -17,15 +17,15 @@ API_HASH = 'd11f615e85605ecc85329c94cf2403b5'
 
 bot2 = Client("my_teszxxt", api_id=API_ID, api_hash=API_HASH,bot_token="6074378866:AAFTSXBqm0zYC2YFgIkbH8br5JeBOMjW3hg")
 
-password = '1Gwhiuum22x0hmqf'
-cluster_url = 'mongodb+srv://adibnslboy:' + \
-    password + '@bnslboy.02zrow4.mongodb.net/'
+password = 'VeJ7EH5TK13U4IQg'
+cluster_url = 'mongodb+srv://bnslboy:' + \
+    password + '@cluster0.avbmi1g.mongodb.net/'
 
 # Create a MongoDB client
 client = MongoClient(cluster_url)
 
 # Access the desired database
-db = client['test']
+db = client['main']
 
 giveaways = db['giveaways']
 
@@ -34,8 +34,6 @@ invites = db['invites']
 roles = db['roles']
 
 owners = db['admins']
-
-msgs = db['messages']
 
 queries = db['query']
 
