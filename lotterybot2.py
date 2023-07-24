@@ -123,7 +123,6 @@ def on_query(client,call):
         #Please provide me the name of role 
         bot2.send_message(user_id,"请提供我的角色名称 -->")
 
-
 @bot2.on_message(filters.command(['me']))
 def list_roles(client, message):
     chat_id = message.chat.id
@@ -133,10 +132,11 @@ def list_roles(client, message):
     data = roles.find_one({'chat_id': chat_id, 'user_id': user.id})
     if data and 'roles' in data:
         user_roles = data['roles']
-        roles_list = "\n".join(user_roles)
-        bot2.send_message(chat_id, f"{user_name} 拥有以下角色:\n{roles_list}")
+        roles_list = "\n • ".join(user_roles)
+        bot2.send_message(chat_id, f"{user_name} 拥有以下角色:\n • {roles_list}")
     else:
         bot2.send_message(chat_id, f"{user_name} 没有被赋予任何角色。")
+
         
 @bot2.on_message(filters.command(['role']))
 def roles_given(client, message):
