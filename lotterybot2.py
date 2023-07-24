@@ -1277,7 +1277,7 @@ def role_giver(chat_id , user_id):
                     is_give_role = False
             if 'is_auto_message' in da and da['is_auto_message'] == True:
                 count = da['message_count']
-                da2 = msgs.find_one({'chat_id':chat_id,'user_id':user_id})
+                da2 = messages.find_one({'chat_id':chat_id,'user_id':user_id})
                 if da2:
                     messages_count = da2['msg_count']
                     if messages_count >= count:
