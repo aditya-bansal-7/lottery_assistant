@@ -124,9 +124,30 @@ def on_query(client,call):
         bot2.send_message(user_id,"请提供我的角色名称 -->")
 
 
+@bot2.on_message(filters.command(['me']))
+def list_roles(client, message):
+    chat_id = message.chat.id
+    user = message.from_user
+    user_name = user.username if user.username else user.first_name
+
+    data = roles.find_one({'chat_id': chat_id, 'user_id': user.id})
+    if data and 'roles' in data:
+        user_roles = data['roles']
+        roles_list = "\n".join(user_roles)
+        bot2.send_message(chat_id, f"{user_name} 拥有以下角色:\n{roles_list}")
+    else:
+        bot2.send_message(chat_id, f"{user_name} 没有被赋予任何角色。")
+        
 @bot2.on_message(filters.command(['role']))
 def roles_given(client, message):
     chat_id = message.chat.id
+    chat_members = bot.get_chat_administrators(chat_id)
+    user_id = message.from_user.id
+    is_admin = any(member.user.id == user_id and member.status in ['creator', 'administrator'] for member in chat_members)
+
+    if not is_admin:
+        bot.reply_to(message, "您必须是管理员才能使用此命令。")
+        return
     reply = message.reply_to_message
     if reply:
         user = reply.from_user.id
@@ -230,6 +251,13 @@ def roles_given(client, message):
 @bot2.on_message(filters.command(['remove_role']))
 def remove_roles(client, message):
     chat_id = message.chat.id
+    chat_members = bot.get_chat_administrators(chat_id)
+    user_id = message.from_user.id
+    is_admin = any(member.user.id == user_id and member.status in ['creator', 'administrator'] for member in chat_members)
+
+    if not is_admin:
+        bot.reply_to(message, "您必须是管理员才能使用此命令。")
+        return
     reply = message.reply_to_message
     if reply:
         user = reply.from_user.id
@@ -334,6 +362,13 @@ def remove_roles(client, message):
 @bot2.on_message(filters.command(['remove_all']))
 def remove_all_roles(client, message):
     chat_id = message.chat.id
+    chat_members = bot.get_chat_administrators(chat_id)
+    user_id = message.from_user.id
+    is_admin = any(member.user.id == user_id and member.status in ['creator', 'administrator'] for member in chat_members)
+
+    if not is_admin:
+        bot.reply_to(message, "您必须是管理员才能使用此命令。")
+        return
     role_name = message.text.split(" ")[1].lower()
     if not role_name:
         # You did not provide me role name
@@ -638,6 +673,7 @@ def callback_handler(call):
         data = roles.find({'chat_id':chat_id})
         markup = InlineKeyboardMarkup()
         text = call.message.text
+        is_role = False
         if data:
             for da in data:
                 if 'role_name' in da:
@@ -645,8 +681,10 @@ def callback_handler(call):
                     role = da['role_name']
                     button1 = InlineKeyboardButton(f"{role} [{count}]",callback_data=f"role_to_giveaway:{role}:{title}")
                     markup.add(button1)
+                    is_role = True
             text += "\n\n选择您要添加的角色 👇"
-            bot.edit_message_text(text,call.message.chat.id,call.message.id,reply_markup=markup)
+        if is_role:
+            bot.edit_message_text(text,call.message.chat.id,call.message.id,reply_markup=markup)    
         else:
             bot.answer_callback_query(call.id,"No Role Found")
     elif call.data.startswith(("role_to_giveaway:")):
@@ -1369,8 +1407,18 @@ def giveaway_handler(message):
     time_thread = threading.Thread(target=time_check,args=(giveaway_id,))
     time_thread.start()
 
+lock = threading.Lock()
+
 def main():
-    bot.polling()
+    if lock.locked():
+        return  # If the function is already being executed, exit
+    try:
+        with lock:
+            bot.polling()
+    except Exception:
+        time_thread = threading.Thread(target=main)
+        time_thread.start()
+
 
 @bot2.on_message(filters.new_chat_members)
 def chatmember(client, message):
