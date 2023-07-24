@@ -90,6 +90,7 @@ def start_for_private(client , message):
     bot.send_message(message.chat.id, msg_text , reply_markup=keyboard)
 @bot2.on_message(filters.command(['settings']) & filters.private)
 def create_role(client,message):
+    is_markup = False
     list = owners.find({'admins':message.from_user.id})
     #Select a Chat in which you want to create a role --
     msg_txt = """👉🏻 选择要获取其邀请数据的群组。
@@ -107,6 +108,8 @@ def create_role(client,message):
                 continue
             title = details.title
             markup.inline_keyboard.append([types2.InlineKeyboardButton(f"{title}",callback_data=f"settings:{chat}")])
+            is_markup = True
+    if is_markup:
         bot2.send_message(message.chat.id,msg_txt,reply_markup=markup)
     else:
         bot2.send_message(message.chat.id,msg_txt)
