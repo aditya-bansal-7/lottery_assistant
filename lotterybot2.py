@@ -123,13 +123,16 @@ def on_query(client,call):
         #Please provide me the name of role 
         bot2.send_message(user_id,"请提供我的角色名称 -->")
 
+
 @bot2.on_message(filters.command(['role']))
 def roles_given(client, message):
     chat_id = message.chat.id
     reply = message.reply_to_message
     if reply:
         user = reply.from_user.id
-        user_name = reply.from_user.first_name
+        user_name = reply.from_user.username
+        if user_name is None:
+            user_name = reply.from_user.first_name
         role_name = message.text.split(" ")[1].lower()
         if role_name is None:
             #You did not provide me role name
@@ -137,6 +140,11 @@ def roles_given(client, message):
                 chat_id, "您没有提供我角色名称", reply_to_message_id=message.id)
             return
 
+        data = roles.find_one({'chat_id':chat_id,'role_name':role_name})
+        if data is None:
+            bot.send_message(chat_id,"此角色不存在。")
+            return
+        
         find = roles.find_one(
             {'chat_id': chat_id, 'user_id': user, 'roles': role_name})
         if find:
@@ -148,6 +156,8 @@ def roles_given(client, message):
                          {'$addToSet': {'roles': role_name},
                           '$set': {'first_name': user_name}},
                          upsert=True)
+        roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':1}},upsert=True)
         #{user_name} has been given the role of {role_name} in this chat
         bot2.send_message(message.chat.id, f"{user_name} 在此聊天中被赋予了 {role_name} 的角色")
     else:
@@ -157,6 +167,12 @@ def roles_given(client, message):
             bot2.send_message(
                 chat_id, "您没有提供我角色名称", reply_to_message_id=message.id)
             return
+        
+        data = roles.find_one({'chat_id':chat_id,'role_name':role_name})
+        if data is None:
+            bot.send_message(chat_id,"此角色不存在。")
+            return
+        
         username = message.text.split(" ")[2:]
         if username is None:
             #You did not provide me users
@@ -184,6 +200,8 @@ def roles_given(client, message):
                                 roles.update_one({'chat_id': chat_id, 'user_id': usser_id},
                                                 {'$addToSet': {'roles': role_name},
                                                 '$set': {'first_name': usser_name}}, upsert=True)
+                                roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':1}},upsert=True)
                         except Exception:
                             continue
                 continue
@@ -203,9 +221,154 @@ def roles_given(client, message):
             roles.update_one({'chat_id': chat_id, 'user_id': usser_id},
                              {'$addToSet': {'roles': role_name},
                               '$set': {'first_name': usser_name}}, upsert=True)
+            roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':1}},upsert=True)
         message_test += f"n 已在此聊天中被赋予 {role_name} 角色"
         if "•" in message_test:
             bot2.send_message(chat_id,message_test)
+
+@bot2.on_message(filters.command(['remove_role']))
+def remove_roles(client, message):
+    chat_id = message.chat.id
+    reply = message.reply_to_message
+    if reply:
+        user = reply.from_user.id
+        user_name = reply.from_user.username
+        if user_name is None:
+            user_name = reply.from_user.first_name
+        role_name = message.text.split(" ")[1].lower()
+        if role_name is None:
+            # You did not provide me role name
+            bot2.send_message(
+                chat_id, "您没有提供我角色名称", reply_to_message_id=message.id)
+            return
+
+        data = roles.find_one({'chat_id': chat_id, 'role_name': role_name})
+        if data is None:
+            bot2.send_message(chat_id, "此角色不存在。")
+            return
+
+        find = roles.find_one(
+            {'chat_id': chat_id, 'user_id': user, 'roles': role_name})
+        if not find:
+            # {user_name} does not have {role_name} role
+            bot2.send_message(
+                chat_id, f"{user_name} 没有 {role_name} 角色", reply_to_message_id=message.id)
+            return
+        roles.update_one({'chat_id': chat_id, 'user_id': user},
+                         {'$pull': {'roles': role_name},
+                          '$set': {'first_name': user_name}},
+                         upsert=True)
+        roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':-1}},upsert=True)
+        # {user_name} has lost the role of {role_name} in this chat
+        bot2.send_message(message.chat.id, f"{user_name} 在此聊天中失去了 {role_name} 的角色")
+    else:
+        role_name = message.text.split(" ")[1].lower()
+        if role_name is None:
+            # you did not provide me role name
+            bot2.send_message(
+                chat_id, "您没有提供我角色名称", reply_to_message_id=message.id)
+            return
+
+        data = roles.find_one({'chat_id': chat_id, 'role_name': role_name})
+        if data is None:
+            bot.send_message(chat_id, "此角色不存在。")
+            return
+
+        username = message.text.split(" ")[2:]
+        if not username:
+            # You did not provide me users
+            bot2.send_message(chat_id, "您没有为我提供用户",
+                              reply_to_message_id=message.id)
+            return
+
+        # User -
+        message_test = "用户-\n"
+        for user in username:
+            if not user.startswith("@"):
+                for entity in message.entities:
+                    if str(entity.type) == "MessageEntityType.TEXT_MENTION":
+                        try:
+                            name = entity.user.first_name
+                            if name == user:
+                                usser_id = entity.user.id
+                                find = roles.find_one(
+                                    {'chat_id': chat_id, 'user_id': usser_id, 'roles': role_name})
+                                if not find:
+                                    # {usser_name} does not have {role_name} role
+                                    bot2.send_message(
+                                        chat_id, f"{usser_name} 没有 {role_name} 角色", reply_to_message_id=message.id)
+                                    continue
+                                message_test += f" • {user}\n"
+                                roles.update_one({'chat_id': chat_id, 'user_id': usser_id},
+                                                 {'$pull': {'roles': role_name},
+                                                  '$set': {'first_name': usser_name}}, upsert=True)
+                                roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':-1}},upsert=True)
+                        except Exception:
+                            continue
+                continue
+            usser = bot2.get_chat(user)
+            usser_id = usser.id
+            usser_name = usser.first_name
+
+            find = roles.find_one(
+                {'chat_id': chat_id, 'user_id': usser_id, 'roles': role_name})
+            if not find:
+                # {usser_name} does not have {role_name} role
+                bot2.send_message(
+                    chat_id, f"{usser_name} 没有 {role_name} 角色", reply_to_message_id=message.id)
+                continue
+
+            message_test += f" • {usser_name}\n"
+            roles.update_one({'chat_id': chat_id, 'user_id': usser_id},
+                             {'$pull': {'roles': role_name},
+                              '$set': {'first_name': usser_name}}, upsert=True)
+            roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':-1}},upsert=True)
+        message_test += f"n 在此聊天中被移除了 {role_name} 角色"
+        if "•" in message_test:
+            bot2.send_message(chat_id, message_test)
+
+@bot2.on_message(filters.command(['remove_all']))
+def remove_all_roles(client, message):
+    chat_id = message.chat.id
+    role_name = message.text.split(" ")[1].lower()
+    if not role_name:
+        # You did not provide me role name
+        bot2.send_message(
+            chat_id, "您没有提供我角色名称", reply_to_message_id=message.id)
+        return
+
+    data = roles.find_one({'chat_id': chat_id, 'role_name': role_name})
+    if data is None:
+        bot2.send_message(chat_id, "此角色不存在。")
+        return
+
+    users_with_role = roles.find({'chat_id': chat_id, 'roles': role_name})
+    if not users_with_role:
+        # No users have the specified role
+        bot2.send_message(
+            chat_id, f"在此聊天中没有用户具有 {role_name} 角色", reply_to_message_id=message.id)
+        return
+
+    # Remove the role from all users with the specified role
+    for user_data in users_with_role:
+        user_id = user_data['user_id']
+        user_name = user_data['first_name']
+        roles.update_one({'chat_id': chat_id, 'user_id': user_id},
+                         {'$pull': {'roles': role_name},
+                          '$set': {'first_name': user_name}},
+                         upsert=True)
+    
+    roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$set':{'count':0}},upsert=True)
+
+    # Role {role_name} has been removed from all users in this chat
+    bot2.send_message(
+        chat_id, f"在此聊天中的所有用户都已被移除 {role_name} 角色", reply_to_message_id=message.id)
+    
 
 def add_inline_markup(chat_id):
     markup = types.InlineKeyboardMarkup()
@@ -290,7 +453,8 @@ def callback_handler(call):
         if data:
             markup = ReplyKeyboardMarkup(resize_keyboard=True,one_time_keyboard=True)
             button1 = KeyboardButton("🚫Cancle")
-            markup.add(button1)
+            button2 = KeyboardButton("Remove all ❗️")
+            markup.add(button1,button2)
             msg2 = bot.send_message(call.message.chat.id,f"<b>向我发送要删除 {role_name} 角色的用户的用户名 </b><i> 您可以将任何邮件转发给要授予角色的用户</i>",reply_markup=markup,parse_mode='HTML')
             bot.register_next_step_handler(call.message,remove_user_to_role,role_name,chat_id,msg2)
         else:
@@ -632,7 +796,9 @@ def callback_handler(call):
         #             amount = da[amount]
     elif call.data.startswith(("data_giveaway:")):
         bot.answer_callback_query(call.id,"working on it")
-
+     elif call.data.startswith(("invite:")):
+        bot.answer_callback_query(call.id,"working on it")
+         
 def process_to_add(message,msg2,chat_id):
     markup = ReplyKeyboardMarkup(resize_keyboard=True,one_time_keyboard=True)
     button1 = KeyboardButton("🚫Cancle")
@@ -866,6 +1032,7 @@ def add_user_to_role(message,role_name,chat_id,msg2):
         bot.delete_message(msg2.chat.id,msg2.id)
         bot.send_message(message.chat.id,"Got an error forward message is in beta please try again after some time",reply_markup=markup)
 
+
 def remove_user_to_role(message, role_name, chat_id, msg2):
     markup = telebot.types.ReplyKeyboardRemove()
     try:
@@ -873,7 +1040,33 @@ def remove_user_to_role(message, role_name, chat_id, msg2):
             bot.delete_message(msg2.chat.id, msg2.id)
             bot.delete_message(message.chat.id, message.id)
             return
+        elif message.text =="Remove all ❗️":
+            users_with_role = roles.find({'chat_id': chat_id, 'roles': role_name})
+            if not users_with_role:
+                bot.delete_message(msg2.chat.id, msg2.id)
+                bot.delete_message(message.chat.id, message.id)
+                # No users have the specified role
+                bot2.send_message(
+                    message.chat.id, f"在此聊天中没有用户具有 {role_name} 角色", reply_to_message_id=message.id)
+                return
 
+            # Remove the role from all users with the specified role
+            for user_data in users_with_role:
+                user_id = user_data['user_id']
+                user_name = user_data['first_name']
+                roles.update_one({'chat_id': chat_id, 'user_id': user_id},
+                                {'$pull': {'roles': role_name},
+                                '$set': {'first_name': user_name}},
+                                upsert=True)
+            
+            roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                                    {'$set':{'count':0}},upsert=True)
+            bot.delete_message(msg2.chat.id, msg2.id)
+            bot.delete_message(message.chat.id, message.id)
+            # Role {role_name} has been removed from all users in this chat
+            bot2.send_message(
+                message.chat.id, f"在此聊天中的所有用户都已被移除 {role_name} 角色", reply_to_message_id=message.id)
+            return
         username = message.text.split(" ")
         # User -
         message_test = "用户-\n"
