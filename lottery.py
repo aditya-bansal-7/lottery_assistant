@@ -6,6 +6,7 @@ from telebot import types
 from telebot.types import InlineKeyboardButton,InlineKeyboardMarkup,ReplyKeyboardMarkup,KeyboardButton
 import threading
 import random
+from pyrogram import Client
 
 bot = telebot.TeleBot("6074378866:AAFTSXBqm0zYC2YFgIkbH8br5JeBOMjW3hg")
 
