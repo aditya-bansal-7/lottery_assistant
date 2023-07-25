@@ -258,7 +258,7 @@ def roles_given(client, message):
                 continue
             usser = bot2.get_chat(user)
             usser_id = usser.id
-            usser_name = usser.first_name
+            usser_name = usser.username
 
             find = roles.find_one(
                 {'chat_id': chat_id, 'user_id': usser_id, 'roles': role_name})
