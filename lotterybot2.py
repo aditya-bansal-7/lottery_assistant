@@ -109,7 +109,7 @@ def create_role(client,message):
         bot2.send_message(message.chat.id,msg_txt,reply_markup=markup)
     else:
         bot2.send_message(message.chat.id,msg_txt)
-    
+   
 @bot2.on_callback_query()
 def on_query(client,call):
     if call.data.startswith(("rolechat:")):
@@ -118,6 +118,248 @@ def on_query(client,call):
         markup = types2.ReplyKeyboardMarkup(keyboard=[types2.KeyboardButton("cancle")])
         #Please provide me the name of role 
         bot2.send_message(user_id,"请提供我的角色名称 -->")
+    elif call.data.startswith(("adduser:")):
+        role_name = call.data.split(":")[1]
+        chat_id = int(call.data.split(":")[2])
+        # data = roles.find_one({'chat_id':chat_id,'role_name':role_name})
+        data = True
+        if data:
+            markup = types2.ReplyKeyboardMarkup([[types2.KeyboardButton("🚫Cancle")]],resize_keyboard=True,one_time_keyboard=True)
+            # button1 = [types2.KeyboardButton("")]
+            # markup.keyboard.append()
+            #<b>Send me username of users whom you want to give {role_name} role </b>\n\n<i>you can forward any message from that user you want to give role</i>
+            msg2 = bot2.send_message(call.message.chat.id,f"<b>发送给我你想要赋予{role_name}角色的用户的用户名</b>\n\n<i>你可以转发想要赋予角色的用户的任何消息</i>",reply_markup=markup)
+            user_id = call.from_user.id
+            user_status[user_id] = {'chat_id':chat_id,'msg2_id':msg2.id,'msg2_chat_id':msg2.chat.id,'role_name':role_name,'call':"add_user"}
+        else:
+            bot2.answer_callback_query(call.id,f"This {role_name} does not exist anymore !!",show_alert=True,cache_time=3)
+    elif call.data.startswith(("removeuser:")):
+        role_name = call.data.split(":")[1]
+        chat_id = int(call.data.split(":")[2])
+        data = roles.find_one({'chat_id':chat_id,'role_name':role_name})
+        if data:
+            markup = types2.ReplyKeyboardMarkup([[types2.KeyboardButton("🚫Cancle")],[types2.KeyboardButton("Remove all ❗️")]],resize_keyboard=True,one_time_keyboard=True)
+            msg2 = bot2.send_message(call.message.chat.id,f"<b>向我发送要删除 {role_name} 角色的用户的用户名 </b><i> 您可以将任何邮件转发给要授予角色的用户</i>",reply_markup=markup,parse_mode='HTML')
+            user_status[user_id] = {'chat_id':chat_id,'msg2_id':msg2.id,'msg2_chat_id':msg2.chat.id,'role_name':role_name,'call':"remove_user"}
+        else:
+            bot2.answer_callback_query(call.id,f"This {role_name} does not exist anymore !!",show_alert=True,cache_time=3)
+
+def add_user_to_role(message,role_name,chat_id,msg2_id,msg2_chat_id):
+    print(message)
+    markup = types2.ReplyKeyboardRemove()
+    try:
+        username = message.text.split(" ")
+        #User -  
+        message_test = "用户-\n"
+        if message.forward_from is not None:
+            usser_id = message.forward_from.id
+            usser_name = message.forward_from.username
+            find = roles.find_one({'chat_id': chat_id, 'user_id': usser_id, 'roles': role_name})
+            if find:
+                    #{usser_name} already have {role_name} role
+                    bot2.delete_messages(msg2_chat_id,msg2_id)
+                    bot2.send_message(message.from_user.id, f"{usser_name} 已具有 {role_name} 角色", reply_to_message_id=message.id,reply_markup=markup)
+                    del user_status[message.chat.id]
+                    return
+            roles.update_one({'chat_id': chat_id, 'user_id': usser_id},
+                                {'$addToSet': {'roles': role_name},
+                                '$set': {'first_name': usser_name}}, upsert=True)
+            roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':1}},upsert=True)
+            
+            message_test += f" • {usser_name}\n"
+            message_test += f"n 已在此聊天中被赋予 {role_name} 角色"
+            if "•" in message_test:
+                bot2.send_message(message.from_user.id,message_test,reply_markup=markup)
+                del user_status[message.chat.id]
+            return
+        for user in username:
+            if not user.startswith("@"):
+                for entity in message.entities:
+                    if str(entity.type) == "MessageEntityType.TEXT_MENTION":
+                        try:
+                            name = entity.user.first_name
+                            if name == user:
+                                usser_id = entity.user.id
+                                find = roles.find_one(
+                                            {'chat_id': chat_id, 'user_id': usser_id, 'roles': role_name})
+                                if find:
+                                    bot2.delete_messages(msg2_chat_id,msg2_id)
+                                    #{usser_name} already have {role_name} role
+                                    bot2.send_message(
+                                        message.from_user.id, f"{name} 已具有 {role_name} 角色", reply_to_message_id=message.id,reply_markup=markup)
+                                    continue
+                                message_test += f" • {user}\n"
+                                roles.update_one({'chat_id': chat_id, 'user_id': usser_id},
+                                                {'$addToSet': {'roles': role_name},
+                                                '$set': {'first_name': name}}, upsert=True)
+                                roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':1}},upsert=True)
+                        except Exception:
+                            continue
+                continue
+            try:
+                
+                usser = bot2.get_chat(user)
+                usser_id = usser.id
+                usser_name = usser.username
+                find = roles.find_one(
+                    {'chat_id': chat_id, 'user_id': usser_id, 'roles': role_name})
+                if find:
+                    bot2.delete_messages(msg2_chat_id,msg2_id)
+                    #{usser_name} already have {role_name} role
+                    bot2.send_message(
+                        message.from_user.id, f"{usser_name} 已具有 {role_name} 角色", reply_to_message_id=message.id,reply_markup=markup)
+                    continue
+                message_test += f" • {usser_name}\n"
+                roles.update_one({'chat_id': chat_id, 'user_id': usser_id},
+                                    {'$addToSet': {'roles': role_name},
+                                    '$set': {'first_name': usser_name}}, upsert=True)
+                roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                                {'$inc':{'count':1}},upsert=True)
+            except Exception as e:
+                bot2.send_message(message.chat.id,f"unexpected error happens \n{e}")
+                continue
+        message_test += f"\n已在此聊天中被赋予 {role_name} 角色"
+        if "•" in message_test:
+            bot2.delete_messages(msg2_chat_id,msg2_id)
+            bot2.send_message(message.from_user.id,message_test,reply_markup=markup)
+        del user_status[message.chat.id]
+    except Exception:
+        bot2.delete_messages(msg2_chat_id,msg2_id)
+        bot2.send_message(message.chat.id,"Got an error forward message is in beta please try again after some time",reply_markup=markup)
+        del user_status[message.chat.id]
+
+
+def remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id):
+    markup = types2.ReplyKeyboardRemove()
+    try:
+        if message.text == "🚫Cancle":
+            bot2.delete_messages(msg2_chat_id, msg2_id)
+            bot2.delete_messages(message.chat.id, message.id)
+            return
+        elif message.text =="Remove all ❗️":
+            users_with_role = roles.find({'chat_id': chat_id, 'roles': role_name})
+            if not users_with_role:
+                bot2.delete_messages(msg2_chat_id, msg2_id)
+                bot2.delete_messages(message.chat.id, message.id)
+                # No users have the specified role
+                bot2.send_message(
+                    message.chat.id, f"在此聊天中没有用户具有 {role_name} 角色", reply_to_message_id=message.id)
+                return
+
+            # Remove the role from all users with the specified role
+            for user_data in users_with_role:
+                user_id = user_data['user_id']
+                user_name = user_data['first_name']
+                roles.update_one({'chat_id': chat_id, 'user_id': user_id},
+                                {'$pull': {'roles': role_name},
+                                '$set': {'first_name': user_name}},
+                                upsert=True)
+            
+            roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                                    {'$set':{'count':0}},upsert=True)
+            bot2.delete_messages(msg2_chat_id, msg2_id)
+            # Role {role_name} has been removed from all users in this chat
+            bot2.send_message(
+                message.chat.id, f"在此聊天中的所有用户都已被移除 {role_name} 角色", reply_to_message_id=message.id)
+            return
+        username = message.text.split(" ")
+        # User -
+        message_test = "用户-\n"
+        
+        if message.forward_from is not None:
+            user_id = message.forward_from.id
+            user_name = message.forward_from.first_name
+            find = roles.find_one({'chat_id': chat_id, 'user_id': user_id, 'roles': role_name})
+            if not find:
+                # {user_name} does not have {role_name} role
+                bot2.delete_messages(msg2_chat_id, msg2_id)
+                bot2.send_message(message.from_user.id, f"{user_name} 没有 {role_name} 角色", reply_to_message_id=message.id, reply_markup=markup)
+                return
+            
+            roles.update_one({'chat_id': chat_id, 'user_id': user_id}, {'$pull': {'roles': role_name}})
+            roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':-1}},upsert=True)
+            message_test += f" • {user_name}\n"
+            message_test += f"n 已在此聊天中被移除 {role_name} 角色"
+            if "•" in message_test:
+                bot2.send_message(message.from_user.id, message_test, reply_markup=markup)
+            return
+
+        for user in username:
+            if not user.startswith("@"):
+                for entity in message.entities:
+                    if str(entity.type) == "MessageEntityType.TEXT_MENTION":
+                        try:
+                            name = entity.user.first_name
+                            if name == user:
+                                user_id = entity.user.id
+                                find = roles.find_one({'chat_id': chat_id, 'user_id': user_id, 'roles': role_name})
+                                if not find:
+                                    # {user_name} does not have {role_name} role
+                                    bot2.delete_messages(msg2_chat_id, msg2_id)
+                                    bot2.send_message(message.from_user.id, f"{user_name} 没有 {role_name} 角色", reply_to_message_id=message.id, reply_markup=markup)
+                                    continue
+                                message_test += f" • {user}\n"
+                                roles.update_one({'chat_id': chat_id, 'user_id': user_id}, {'$pull': {'roles': role_name}})
+                                roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                             {'$inc':{'count':-1}},upsert=True)
+                        except Exception:
+                            continue
+                continue
+            try:
+                bot2.start()
+                user_obj = bot2.get_chat(user)
+                user_id = user_obj.id
+                user_name = user_obj.username
+
+                find = roles.find_one({'chat_id': chat_id, 'user_id': user_id, 'roles': role_name})
+                if not find:
+                    # {user_name} does not have {role_name} role
+                    bot2.delete_messages(msg2_chat_id, msg2_id)
+                    bot2.send_message(message.from_user.id, f"{user_name} 没有 {role_name} 角色", reply_to_message_id=message.id, reply_markup=markup)
+                    continue
+
+                message_test += f" • {user_name}\n"
+                roles.update_one({'chat_id': chat_id, 'user_id': user_id}, {'$pull': {'roles': role_name}})
+                roles.update_one({'chat_id':chat_id,'role_name':role_name},
+                                {'$inc':{'count':-1}},upsert=True)
+                bot2.stop()
+
+            except Exception as e:
+                print(e)
+                bot2.send_message(message.chat.id,f"Unexpected Error Happen - {e}")
+                pass
+        message_test += f"\n已在此聊天中被移除 {role_name} 角色"
+        if "•" in message_test:
+            bot2.delete_messages(msg2_chat_id, msg2_id)
+            bot2.send_message(message.from_user.id, message_test, reply_markup=markup)
+
+    except Exception as e:
+        print(e)
+        bot2.delete_message(msg2_chat_id, msg2_id)
+        bot2.send_message(message.chat.id, "Got an error forward message is in beta please try again after some time", reply_markup=markup)
+        pass
+
+@bot2.on_message(filters.text)
+def text_message_handler(client, message):
+    if message.chat.id in user_status:
+        data = user_status[message.chat.id]
+        chat_id = data['chat_id']
+        msg2_id = data['msg2_id']
+        msg2_chat_id = data['msg2_chat_id']
+        role_name = data['role_name']
+        call = data['call']
+        if message.text == "🚫Cancle":
+            bot2.delete_messages(msg2_chat_id,msg2_id)
+            bot2.delete_messages(message.chat.id,message.id)
+            del user_status[message.chat.id]
+            return
+        if call == "add_user":
+            add_user_to_role(message,role_name,chat_id,msg2_id,msg2_chat_id)
+        elif call == "remove_user":
+            remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id)
 
 def role_giver(chat_id , user_id):
     data = roles.find({"chat_id":chat_id})
