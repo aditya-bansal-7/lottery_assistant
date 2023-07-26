@@ -33,7 +33,7 @@ messages = db['messages']
 
 app = "not_set"
 
-user_status = []
+user_status = {}
 
 @bot2.on_message(filters.command(['start']) & filters.group)
 def start_for_group(client , message):
