@@ -110,7 +110,7 @@ def create_role(client,message):
         bot2.send_message(message.chat.id,msg_txt,reply_markup=markup)
     else:
         bot2.send_message(message.chat.id,msg_txt)
-   
+  
 @bot2.on_callback_query()
 def on_query(client,call):
     if call.data.startswith(("rolechat:")):
@@ -122,12 +122,9 @@ def on_query(client,call):
     elif call.data.startswith(("adduser:")):
         role_name = call.data.split(":")[1]
         chat_id = int(call.data.split(":")[2])
-        # data = roles.find_one({'chat_id':chat_id,'role_name':role_name})
-        data = True
+        data = roles.find_one({'chat_id':chat_id,'role_name':role_name})
         if data:
             markup = types2.ReplyKeyboardMarkup([[types2.KeyboardButton("🚫Cancle")]],resize_keyboard=True,one_time_keyboard=True)
-            # button1 = [types2.KeyboardButton("")]
-            # markup.keyboard.append()
             #<b>Send me username of users whom you want to give {role_name} role </b>\n\n<i>you can forward any message from that user you want to give role</i>
             msg2 = bot2.send_message(call.message.chat.id,f"<b>发送给我你想要赋予{role_name}角色的用户的用户名</b>\n\n<i>你可以转发想要赋予角色的用户的任何消息</i>",reply_markup=markup)
             user_id = call.from_user.id
@@ -343,25 +340,6 @@ def remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id):
         bot2.delete_message(msg2_chat_id, msg2_id)
         bot2.send_message(message.chat.id, "Got an error forward message is in beta please try again after some time", reply_markup=markup)
         pass
-
-@bot2.on_message(filters.text)
-def text_message_handler(client, message):
-    if message.chat.id in user_status:
-        data = user_status[message.chat.id]
-        chat_id = data['chat_id']
-        msg2_id = data['msg2_id']
-        msg2_chat_id = data['msg2_chat_id']
-        role_name = data['role_name']
-        call = data['call']
-        if message.text == "🚫Cancle":
-            bot2.delete_messages(msg2_chat_id,msg2_id)
-            bot2.delete_messages(message.chat.id,message.id)
-            del user_status[message.chat.id]
-            return
-        if call == "add_user":
-            add_user_to_role(message,role_name,chat_id,msg2_id,msg2_chat_id)
-        elif call == "remove_user":
-            remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id)
 
 def role_giver(chat_id , user_id):
     data = roles.find({"chat_id":chat_id})
@@ -788,4 +766,25 @@ def list_roles(client, message):
         bot2.send_message(chat_id, f"{user_name} 没有被赋予任何角色。")
 
 
+@bot2.on_message(filters.text)
+def text_message_handler(client, message):
+    if message.chat.id in user_status:
+        data = user_status[message.chat.id]
+        chat_id = data['chat_id']
+        msg2_id = data['msg2_id']
+        msg2_chat_id = data['msg2_chat_id']
+        role_name = data['role_name']
+        call = data['call']
+        if message.text == "🚫Cancle":
+            bot2.delete_messages(msg2_chat_id,msg2_id)
+            bot2.delete_messages(message.chat.id,message.id)
+            del user_status[message.chat.id]
+            return
+        if call == "add_user":
+            add_user_to_role(message,role_name,chat_id,msg2_id,msg2_chat_id)
+        elif call == "remove_user":
+            remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id)
+    else:
+        pass
+        
 bot2.run()
