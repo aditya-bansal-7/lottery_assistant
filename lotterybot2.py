@@ -137,7 +137,7 @@ def on_query(client,call):
         data = roles.find_one({'chat_id':chat_id,'role_name':role_name})
         if data:
             markup = types2.ReplyKeyboardMarkup([[types2.KeyboardButton("🚫Cancle")],[types2.KeyboardButton("Remove all ❗️")]],resize_keyboard=True,one_time_keyboard=True)
-            msg2 = bot2.send_message(call.message.chat.id,f"<b>向我发送要删除 {role_name} 角色的用户的用户名 </b><i> 您可以将任何邮件转发给要授予角色的用户</i>",reply_markup=markup,parse_mode='HTML')
+            msg2 = bot2.send_message(call.message.chat.id,f"<b>向我发送要删除 {role_name} 角色的用户的用户名 </b><i> 您可以将任何邮件转发给要授予角色的用户</i>",reply_markup=markup)
             user_id = call.from_user.id
             user_status[user_id] = {'chat_id':chat_id,'msg2_id':msg2.id,'msg2_chat_id':msg2.chat.id,'role_name':role_name,'call':"remove_user"}
         else:
