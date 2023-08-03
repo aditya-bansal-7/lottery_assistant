@@ -217,20 +217,21 @@ def dice_handler(client, message):
     user_id = message.from_user.id
     is_admin = False
     is_how_to = False
-    try:
-        admins = bot2.get_chat_members(chat_id, filter=enums.ChatMembersFilter.ADMINISTRATORS)
-        for admin in admins:
-            user_id2 = admin.user.id
-            if user_id2 == user_id:
-                is_admin = True
-    except Exception as e:
-        bot2.send_message(chat_id, "Error in fetching group admin.")
-        print("Error fetching admins:", e)
-        return
-
-    if not is_admin:
-        bot2.send_message(chat_id, "您必须是管理员才能使用此命令。", reply_to_message_id=message.id)
-        return
+    if len(args) >= 4:
+        try:
+            admins = bot2.get_chat_members(chat_id, filter=enums.ChatMembersFilter.ADMINISTRATORS)
+            for admin in admins:
+                user_id2 = admin.user.id
+                if user_id2 == user_id:
+                    is_admin = True
+        except Exception as e:
+            bot2.send_message(chat_id, "Error in fetching group admin.")
+            print("Error fetching admins:", e)
+            return
+    
+        if not is_admin:
+            bot2.send_message(chat_id, "您必须是管理员才能使用此命令。", reply_to_message_id=message.id)
+            return
 
     args = message.text.split()[1:]
     emoji_list = ["🎲", "🎯", "🏀", "⚽️", "🎳"]
@@ -351,7 +352,7 @@ def end_dice(dice_id):
         dices.update_one({'dice_id': dice_id}, {'$set': {'dice_id': dice_id2, 'is_done': True}}, upsert=True)
        
 @bot2.on_message(filters.command(['ranks']))
-def ranks_sender(message):
+def ranks_sender(client,message):
     data = dices.find_one({'chat_id': message.chat.id, 'is_done': {'$exists': False}})
     
     if data:
