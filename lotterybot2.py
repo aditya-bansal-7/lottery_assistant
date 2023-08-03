@@ -1,7 +1,11 @@
-
+# BNsl Boy 
 from pymongo import MongoClient
 from pyrogram import Client , filters ,enums 
 import pyrogram.types as types2
+import uuid
+from datetime import datetime
+import threading
+import time
 
 API_ID = '1149607'
 
@@ -31,9 +35,13 @@ queries = db['query']
 
 messages = db['messages']
 
+dices = db['dices']
+
 app = "not_set"
 
 user_status = {}
+
+score_board = {}
 
 @bot2.on_message(filters.command(['start']) & filters.group)
 def start_for_group(client , message):
@@ -143,6 +151,262 @@ def on_query(client,call):
         else:
             bot2.answer_callback_query(call.id,f"This {role_name} does not exist anymore !!",show_alert=True,cache_time=3)
 
+
+@bot2.on_message(filters.dice)
+def dice_handler(client, message):
+    data = dices.find_one({'chat_id': message.chat.id, 'is_done': {'$exists': False}})
+    
+    if data:
+        emoji = data['emoji']
+        participants = data['participants']
+        if emoji == message.dice.emoji:
+            user_id = str(message.from_user.id)
+            value = message.dice.value
+            chances = data['chances']
+            if data['role'] is not None:
+                role_name = data['role']
+                data2 = roles.find_one({'chat_id': message.chat.id, 'roles': role_name})
+                if data2 is None:
+                    bot2.send_message(message.chat.id, f"🚫 你需要拥有 {role_name} 角色才能参加此活动。", reply_to_message_id=message.id)
+                    return
+            
+            if user_id in participants and participants[user_id]['chances_used'] >= chances:
+                bot2.send_message(message.chat.id, "⚠️ 你已经用完所有机会。", reply_to_message_id=message.id)
+                return
+
+            
+            if user_id in participants:
+                participants[user_id]['chances_used'] += 1
+            else:
+                participants[user_id] = {'chances_used': 1, 'score': 0}
+
+            participants[user_id]['first_name'] = message.from_user.first_name
+            participants[user_id]['username'] = message.from_user.username
+            participants[user_id]['score'] += value
+            dices.update_one(
+                {'chat_id': message.chat.id, 'is_done': {'$exists': False}},
+                {'$set': {'participants': participants}}
+            )
+            if str(message.chat.id) not in score_board:
+                score_board[str(message.chat.id)] = []
+            if user_id not in score_board[str(message.chat.id)]:
+                score_board[str(message.chat.id)].append(user_id)
+            if len(score_board[str(message.chat.id)]) >= chances:
+                send_score_board(message.chat.id)
+
+def send_score_board(chat_id):
+    user_ids = score_board[str(chat_id)]
+    data = dices.find_one({'chat_id': chat_id, 'is_done': {'$exists': False}})
+    
+    message_text = "🎲 积分榜更新 🎲\n\n"
+    if data:
+        participants = data['participants']
+        for user_id in user_ids:
+            score = participants[user_id]['score']
+            first_name = participants[user_id]['first_name']
+            message_text += f"🔹 <a href='tg://user?id={user_id}'>{first_name}</a> - 分数: {score}\n"
+    
+    message_text += "\n使用 /ranks 查看前十名 🏆"
+
+    bot2.send_message(chat_id, message_text)
+    del score_board[str(chat_id)]
+
+@bot2.on_message(filters.command(['dices']))
+def dice_handler(client, message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    is_admin = False
+    is_how_to = False
+    try:
+        admins = bot2.get_chat_members(chat_id, filter=enums.ChatMembersFilter.ADMINISTRATORS)
+        for admin in admins:
+            user_id2 = admin.user.id
+            if user_id2 == user_id:
+                is_admin = True
+    except Exception as e:
+        bot2.send_message(chat_id, "Error in fetching group admin.")
+        print("Error fetching admins:", e)
+        return
+
+    if not is_admin:
+        bot2.send_message(chat_id, "您必须是管理员才能使用此命令。", reply_to_message_id=message.id)
+        return
+
+    args = message.text.split()[1:]
+    emoji_list = ["🎲", "🎯", "🏀", "⚽️", "🎳"]
+
+    duration_units = {"d": 86400, "h": 3600, "m": 60, "s": 1}
+
+    try:
+        emoji, chances, reward, duration = args[:4]
+        chances = int(chances)
+        reward = reward.replace("_", " ")
+        duration = int(duration[:-1]) * duration_units[duration[-1]]
+        role = None
+    except (ValueError, KeyError, IndexError):
+        bot2.send_message(chat_id, "命令格式无效。用法：/dice <emoji> <chances> <获奖人数> <时长>")
+        return
+    except Exception:
+        bot2.send_message(chat_id, "命令格式无效。用法：/dice <emoji> <chances> <获奖人数> <时长>")
+        return
+
+    if emoji not in emoji_list:
+        bot2.send_message(chat_id, "Emoji not accepted. Try using one of these 🎲, 🎯, 🏀, ⚽️, 🎳")
+        return
+
+    if len(args) == 5:
+        text = args[4]
+        if text.startswith("role:"):
+            role = text.split(":")[1]
+            data = roles.find_one({'chat_id': chat_id, 'role_name': role})
+            if data:
+                if 'how_to_get' in data:
+                    is_how_to = True
+                    keyboard = types2.InlineKeyboardMarkup(
+                        [
+                            [
+                                types2.InlineKeyboardButton(
+                                    text=f'如何获得 {role}',
+                                    callback_data=f"giveaway_how_to:{role}:{chat_id}"
+                                )
+                            ]
+                        ]
+                    )
+                else:
+                    bot2.send_message(chat_id, f"{role} 在此聊天中不存在。", reply_to_message_id=message.id)
+                    return
+
+    dice_id = str(uuid.uuid4())
+    time_left = duration
+    time_left_str = f"{time_left // 86400}d:{(time_left % 86400) // 3600}h:{(time_left % 3600) // 60}m:{time_left % 60}s"
+
+    document = {
+        "dice_id": dice_id,
+        "emoji": emoji,
+        "chat_id": chat_id,
+        "reward": reward,
+        "chances": chances,
+        "duration": duration,
+        "role": role,
+        "participants": {},
+        "start_time": datetime.now(),
+        "winners": [],
+        "message_id": message.id + 1
+    }
+    dices.insert_one(document)
+
+    message_text = f"🎉 表情幸运抽奖 🎉\n\n🍀 发送 {emoji} 表情参与抽奖，获得积分 🍀\n\n🎁 加入 {reward} \n\n🏆 {chances} 次机会参与！🌟\n\n⏰ 倒计时 - {time_left_str} 🔥\n\n🎊 取得高分 & 赢得大奖！🎁\n\n💥 不要错过！🎉"
+
+    if role:
+        message_text += f"\n\n🌟要参加此幸运抽奖，您需要拥有 {role} 角色"
+
+    if is_how_to:
+        bot2.send_message(chat_id, message_text, reply_markup=keyboard)
+    else:
+        bot2.send_message(chat_id, message_text)
+    bot2.send_dice(chat_id, emoji)
+    bot2.delete_messages(chat_id, message.id)
+    time_thread = threading.Thread(target=time_check)
+    time_thread.start()
+
+def end_dice(dice_id):
+    dice = dices.find_one({'dice_id': dice_id})
+    if dice:
+        chat_id = dice["chat_id"]
+        if dice["participants"] == {}:
+            message_text = "无人参与此次抽奖，本次幸运抽奖已取消。🍀"
+            dice_id2 = str(uuid.uuid4())
+            dices.update_one({'dice_id': dice_id}, {'$set': {'dice_id': dice_id2, 'is_done': True}}, upsert=True)
+            bot2.send_message(chat_id, message_text)
+            return
+
+        sorted_participants = sorted(dice["participants"].items(), key=lambda x: x[1]['score'], reverse=True)
+        max_chars_per_message = 500  # Telegram character limit for messages
+        message_chunks = []
+        current_chunk = ""
+
+        current_chunk += "<b>抽奖已结束🍀</b>\n<i>排行榜</i>\n\n"
+
+        for i, (user_id, score) in enumerate(sorted_participants):
+            first_name = score['first_name']
+            if i == 0:
+                current_chunk += f"🥇 - <a href='tg://user?id={user_id}'>{first_name}</a> - {score['score']}\n"
+            elif i == 1:
+                current_chunk += f"🥈 - <a href='tg://user?id={user_id}'>{first_name}</a> - {score['score']}\n"
+            elif i == 2:
+                current_chunk += f"🥉 - <a href='tg://user?id={user_id}'>{first_name}</a> - {score['score']}\n"
+            else:
+                current_chunk += f"🏅 - <a href='tg://user?id={user_id}'>{first_name}</a> - {score['score']}\n"
+
+            if len(current_chunk) >= max_chars_per_message:
+                message_chunks.append(current_chunk)
+                current_chunk = ""
+
+        if current_chunk:
+            message_chunks.append(current_chunk)
+
+        for chunk in message_chunks:
+            bot2.send_message(chat_id, chunk)
+        dice_id2 = str(uuid.uuid4())
+        dices.update_one({'dice_id': dice_id}, {'$set': {'dice_id': dice_id2, 'is_done': True}}, upsert=True)
+       
+@bot2.on_message(filters.command(['ranks']))
+def ranks_sender(message):
+    data = dices.find_one({'chat_id': message.chat.id, 'is_done': {'$exists': False}})
+    
+    if data:
+        if data["participants"] == {}:
+            message_text = "没有任何用户参与。"
+            bot2.send_message(message.chat.id, message_text)
+            return
+
+        sorted_participants = sorted(data["participants"].items(), key=lambda x: x[1]['score'], reverse=True)
+
+        current_chunk = "🏆 前十名排行榜 - \n\n"
+
+        for i, (user_id, score) in enumerate(sorted_participants):
+            first_name = score['first_name']
+            if i == 0:
+                current_chunk += f"🥇 - <a href='tg://user?id={user_id}'>{first_name}</a> - {score['score']}\n"
+            elif i == 1:
+                current_chunk += f"🥈 - <a href='tg://user?id={user_id}'>{first_name}</a> - {score['score']}\n"
+            elif i == 2:
+                current_chunk += f"🥉 - <a href='tg://user?id={user_id}'>{first_name}</a> - {score['score']}\n"
+            else:
+                current_chunk += f"🏅 - <a href='tg://user?id={user_id}'>{first_name}</a> - {score['score']}\n"
+            
+            if i == 9:
+                break
+    
+        bot2.send_message(message.chat.id, current_chunk)
+    else:
+        bot2.send_message(message.chat.id, "未找到进行中的抽奖活动。")
+
+lock = threading.Lock()
+
+def time_check():
+    with lock:
+        time.sleep(10)
+        while True:
+            dicess = dices.find()
+            i = 1
+            for giveaway in dicess:
+                if 'is_done' in giveaway:
+                    continue
+                giveaway["duration"] -= 10
+                time_left = giveaway["duration"]
+                dice_id = giveaway['dice_id']
+                i += 1
+                dices.update_one({'dice_id': dice_id}, {'$set': {'duration': giveaway["duration"]}}) 
+                if time_left <= 0:
+                    end_dice(dice_id)
+            if i == 1:
+                return False
+            time.sleep(10)
+
+
+time_thread = threading.Thread(target=time_check)
+time_thread.start()
 def add_user_to_role(message,role_name,chat_id,msg2_id,msg2_chat_id):
     print(message)
     markup = types2.ReplyKeyboardRemove()
