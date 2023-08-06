@@ -70,27 +70,53 @@ def start_for_group(client , message):
     bot2.send_message(message.chat.id,msg_text)
 
             
+
 @bot2.on_message(filters.command(['start']) & filters.private)
 def start_for_private(client, message):
-    keyboard = types2.InlineKeyboardMarkup(
-        [
+    if message.text == "/start":
+        keyboard = types2.InlineKeyboardMarkup(
             [
-                types2.InlineKeyboardButton(
-                    text='Add Bot to Group',
-                    url='https://telegram.me/Academy_lottery_assistant_bot?startgroup=start'
-                )
+                [
+                    types2.InlineKeyboardButton(
+                        text='Add Bot to Group',
+                        url='https://telegram.me/Academy_lottery_assistant_bot?startgroup=start'
+                    )
+                ]
             ]
-        ]
-    )
-    first_name = message.from_user.first_name
-    msg_text = f"""👋🏻 你好，{first_name}！
-@Academy_lottery_assistant_bot 是最全面的机器人，可以帮助您轻松管理群组内的赠品活动！
+        )
+        first_name = message.from_user.first_name
+        msg_text = f"""👋🏻 你好，{first_name}！
+    @Academy_lottery_assistant_bot 是最全面的机器人，可以帮助您轻松管理群组内的赠品活动！
 
-👉🏻 将我添加到一个超级群组中，并将我提升为管理员，让我开始工作吧！
+    👉🏻 将我添加到一个超级群组中，并将我提升为管理员，让我开始工作吧！
 
-❓ 有哪些命令可用？ ❓
-按下 /settings 查看所有命令以及它们的用法！"""
-    bot2.send_message(message.chat.id, msg_text, reply_markup=keyboard)
+    ❓ 有哪些命令可用？ ❓
+    按下 /settings 查看所有命令以及它们的用法！"""
+        bot2.send_message(message.chat.id, msg_text, reply_markup=keyboard)
+    else:
+        giveaway_id = message.text.split(" ")[1]
+        giveaway = giveaways.find_one({'giveawy_id':giveaway_id})
+        if giveaway is None:
+            bot2.send_message(message.from_user.id, "抱歉，此赠品活动已不再有效。")
+            return
+        if giveaway:
+            user_id = message.from_user.id
+            giveaway = giveaways.find_one({'giveaway_id':giveaway_id})
+            chat_id = giveaway['chat_id']
+            role = giveaway["role"]
+            if role == None:
+                pass
+            else:
+                role_user = roles.find_one({'chat_id':chat_id,'user_id':user_id,'roles':role})
+                if role_user is None:
+                    bot2.send_message(user_id, f"要参加此抽奖，您必须拥有 {role} 角色。")
+                    return
+            if user_id in giveaway["participants"]:
+                bot2.send_message(user_id, "您已经参加过了此赠品活动。")
+                return
+            giveaway["participants"].append(user_id)
+            giveaways.update_one({"giveaway_id": giveaway_id}, {"$set": {"participants": giveaway["participants"],'is_edit':True}})
+            bot2.send_message(user_id, "您已成功参加了赠品活动。")
 
 
 @bot2.on_message(filters.command(['settings']) & filters.private)
@@ -217,7 +243,7 @@ def dice_handler(client, message):
     user_id = message.from_user.id
     is_admin = False
     is_how_to = False
-    if len(args) >= 4:
+    
         try:
             admins = bot2.get_chat_members(chat_id, filter=enums.ChatMembersFilter.ADMINISTRATORS)
             for admin in admins:
@@ -237,19 +263,19 @@ def dice_handler(client, message):
     emoji_list = ["🎲", "🎯", "🏀", "⚽️", "🎳"]
 
     duration_units = {"d": 86400, "h": 3600, "m": 60, "s": 1}
-
-    try:
-        emoji, chances, reward, duration = args[:4]
-        chances = int(chances)
-        reward = reward.replace("_", " ")
-        duration = int(duration[:-1]) * duration_units[duration[-1]]
-        role = None
-    except (ValueError, KeyError, IndexError):
-        bot2.send_message(chat_id, "命令格式无效。用法：/dice <emoji> <chances> <获奖人数> <时长>")
-        return
-    except Exception:
-        bot2.send_message(chat_id, "命令格式无效。用法：/dice <emoji> <chances> <获奖人数> <时长>")
-        return
+    if len(args) >= 4:
+        try:
+            emoji, chances, reward, duration = args[:4]
+            chances = int(chances)
+            reward = reward.replace("_", " ")
+            duration = int(duration[:-1]) * duration_units[duration[-1]]
+            role = None
+        except (ValueError, KeyError, IndexError):
+            bot2.send_message(chat_id, "命令格式无效。用法：/dice <emoji> <chances> <获奖人数> <时长>")
+            return
+        except Exception:
+            bot2.send_message(chat_id, "命令格式无效。用法：/dice <emoji> <chances> <获奖人数> <时长>")
+            return
 
     if emoji not in emoji_list:
         bot2.send_message(chat_id, "Emoji not accepted. Try using one of these 🎲, 🎯, 🏀, ⚽️, 🎳")
