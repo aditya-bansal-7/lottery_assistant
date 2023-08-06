@@ -95,7 +95,7 @@ def start_for_private(client, message):
         bot2.send_message(message.chat.id, msg_text, reply_markup=keyboard)
     else:
         giveaway_id = message.text.split(" ")[1]
-        giveaway = giveaways.find_one({'giveawy_id':giveaway_id})
+        giveaway = giveaways.find_one({'giveaway_id':giveaway_id})
         if giveaway is None:
             bot2.send_message(message.from_user.id, "抱歉，此赠品活动已不再有效。")
             return
