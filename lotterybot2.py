@@ -991,7 +991,7 @@ def create_invite_link(client, message):
             bot2.send_message(chat_id, message_text)
     else:
             link = bot2.create_chat_invite_link(
-                chat_id, f"{first_name} by @Binaryx_Robot")
+                chat_id, f"{first_name}")
             invite_link = link.invite_link
             message_text = f"""🔗 <a href='tg://user?id={user_id}'>{first_name}</a> Your exclusive link:
 <code>{invite_link}</code> (Click to copy)
