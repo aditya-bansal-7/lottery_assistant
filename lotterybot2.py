@@ -971,7 +971,7 @@ def remove_all_roles(client, message):
 @bot2.on_message(filters.command(['link']) & filters.group)
 def create_invite_link(client, message):
     chat_id = message.chat.id
-    bot_member = bot2.get_chat_member(chat_id, 5967390922)
+    bot_member = bot2.get_chat_member(chat_id, 6074378866)
     if bot_member.privileges.can_invite_users is False:
         bot2.send_message(chat_id,"❌ Insufficient permissions for the robot, please grant at least the following admin permissions:\n- Invite members via link")
         return
