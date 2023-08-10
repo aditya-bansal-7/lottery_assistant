@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from pyrogram import Client , filters ,enums 
 import pyrogram.types as types2
 import uuid
-from datetime import datetime
+from datetime import datetime , timedelta
 import threading
 import time
 
@@ -47,8 +47,6 @@ score_board = {}
 def start_for_group(client , message):
     try:
         admins = bot2.get_chat_members(message.chat.id,filter=enums.ChatMembersFilter.ADMINISTRATORS)
-    
-
         for admin in admins:
             user_id = admin.user.id
             list = owners.find_one({'chat_id': message.chat.id})
@@ -57,7 +55,7 @@ def start_for_group(client , message):
                 if user_id not in adminlist:
                     owners.update_one(
                         {'chat_id': message.chat.id},
-                        {'$addToSet':{'admins': user_id}},upsert=True
+                        {'$addToSet':{'admins': user_id},'$set':{'chat_title': message.chat.title}},upsert=True
                     )
             else:
                 owners.update_one(
@@ -68,8 +66,7 @@ def start_for_group(client , message):
         pass
     msg_text = '✅ 机器人已启动\n✅ 管理员列表已更新'
     bot2.send_message(message.chat.id,msg_text)
-
-            
+          
 
 @bot2.on_message(filters.command(['start']) & filters.private)
 def start_for_private(client, message):
@@ -133,17 +130,21 @@ def create_role(client,message):
     if list:
         for list2 in list:
             chat = list2['chat_id']
-            try:
-                details = bot2.get_chat(chat)
-            except Exception:
-                continue
-            title = details.title
+            if 'chat_title' in list2:
+                title = list2['chat_title']
+            else:
+                try:
+                    details = bot2.get_chat(chat)
+                    title = details.title
+                except Exception:
+                    continue
             markup.inline_keyboard.append([types2.InlineKeyboardButton(f"{title}",callback_data=f"settings:{chat}")])
             is_markup = True
     if is_markup:
         bot2.send_message(message.chat.id,msg_txt,reply_markup=markup)
     else:
         bot2.send_message(message.chat.id,msg_txt)
+
   
 @bot2.on_callback_query()
 def on_query(client,call):
@@ -434,6 +435,7 @@ def time_check():
 
 time_thread = threading.Thread(target=time_check)
 time_thread.start()
+
 def add_user_to_role(message,role_name,chat_id,msg2_id,msg2_chat_id):
     print(message)
     markup = types2.ReplyKeyboardRemove()
@@ -966,82 +968,116 @@ def remove_all_roles(client, message):
         chat_id, f"在此聊天中的所有用户都已被移除 {role_name} 角色", reply_to_message_id=message.id)
 
 
+@bot2.on_message(filters.command(['link']) & filters.group)
+def create_invite_link(client, message):
+    chat_id = message.chat.id
+    bot_member = bot2.get_chat_member(chat_id, 5967390922)
+    if bot_member.privileges.can_invite_users is False:
+        bot2.send_message(chat_id,"❌ Insufficient permissions for the robot, please grant at least the following admin permissions:\n- Invite members via link")
+        return
+    
+    user_id = message.from_user.id
+    first_name = message.from_user.first_name
+    data = invites.find_one({'chat_id': chat_id, 'user_id': user_id,'invite_link': {'$exists': True}})
+
+    if data:
+            link = data['invite_link']
+            invite_count = data['invi_count']
+            
+            message_text = f"""🔗 <a href='tg://user?id={user_id}'>{first_name}</a> Your exclusive link:
+<code>{link}</code> (Click to copy)
+
+👉 Current Total Invitations {invite_count} Person ."""
+            bot2.send_message(chat_id, message_text)
+    else:
+            link = bot2.create_chat_invite_link(
+                chat_id, f"{first_name} by @Binaryx_Robot")
+            invite_link = link.invite_link
+            message_text = f"""🔗 <a href='tg://user?id={user_id}'>{first_name}</a> Your exclusive link:
+<code>{invite_link}</code> (Click to copy)
+
+👉 Current Total Invitations 0 Person ."""
+            bot2.send_message(chat_id, message_text)
+            invites.update_one(
+                {'chat_id': chat_id, 'user_id': user_id},
+                {'$set': {'invite_link': invite_link,'invi_count':0}},
+                upsert=True
+            )
+            owners.update_one({'chat_id':chat_id},{'$inc':{'link_count':1}},upsert=True)
+
+@bot2.on_chat_member_updated()
+def members(client, message):
+    chat_id = message.chat.id
+    if message.invite_link:
+        invite_link = message.invite_link.invite_link
+        data = invites.find_one({'chat_id': chat_id, 'invite_link': invite_link})
+        if data:
+            user_id = data['user_id']
+            update_invites(chat_id, user_id, message.new_chat_member.user, "invite")
+
 @bot2.on_message(filters.new_chat_members)
 def chatmember(client, message):
-    new_user = message.new_chat_members
-    for user in new_user:
-        new_member_id = user.id
-        new_member_username = user.username
-        new_member_firstname = user.first_name
-        chat_id = message.chat.id
-        user_id = message.from_user.id
-        if user_id != new_member_id:
-            status = str(user.status)
-            statuses = ["UserStatus.LAST_WEEK", "UserStatus.ONLINE", "UserStatus.OFFLINE", "UserStatus.RECENTLY"]
-            if status in statuses:
-                invites.update_one(
-                    {'chat_id': chat_id, 'user_id': user_id},
-                    {
-                        '$inc': {'total_count': 1, 'regular_count': 1, 'left_count': 0, 'fake_count': 0, 'g_count': 1},
-                        '$addToSet': {'new_members_ids': new_member_id, 'new_member_username': new_member_username, 'new_member_firstname': new_member_firstname}
-                    },
-                    upsert=True
-                )
-                role_giver(chat_id,user_id)
-            else:
-                invites.update_one(
-                    {'chat_id': chat_id, 'user_id': user_id},
-                    {
-                        '$inc': {'total_count': 1, 'fake_count': 1, 'regular_count': 0, 'left_count': 0, 'g_count': 0},
-                        '$addToSet': {'fake_members_ids': new_member_id, 'fake_member_firstname': new_member_firstname, 'fake_member_username': new_member_username}
-                    },
-                    upsert=True
-                )
-        else:
-            links = invites.find({'chat_id': chat_id})
-            for link in links:
-                if 'invite_link' in link:
-                    invite_link = link['invite_link']
-                    user_id = link['user_id']
-                   
-                    if 'invite_count' in link:
-                        invi_count = link['invite_count']
-                        try:
-                            invi = app.get_chat_invite_link_joiners_count(chat_id, invite_link)
-                            if invi_count != invi:
-                                users = app.get_chat_invite_link_joiners(chat_id, invite_link)
-                                for user in users:
-                                    if user.user.id == new_member_id:
-                                        invites.update_one(
-                                            {'chat_id': chat_id, 'user_id': user_id},
-                                            {
-                                                '$inc': {'total_count': 1, 'regular_count': 1, 'left_count': 0, 'fake_count': 0, 'invite_count': 1, 'g_count': 1},
-                                                '$addToSet': {'new_members_ids': new_member_id}
-                                            },
-                                            upsert=True
-                                        )
-                                        role_giver(chat_id,user_id)
-                                        break
-                        except Exception:
-                            pass
-                    else:
-                        try:
-                            users = app.get_chat_invite_link_joiners(chat_id, invite_link)
-                            for user in users:
-                                if user.user.id == new_member_id:
-                                    invites.update_one(
-                                        {'chat_id': chat_id, 'user_id': user_id},
-                                        {
-                                            '$inc': {'total_count': 1, 'regular_count': 1, 'left_count': 0, 'fake_count': 0, 'invite_count': 1, 'g_count': 1},
-                                            '$addToSet': {'new_members_ids': new_member_id}
-                                        },
-                                        upsert=True
-                                    )
-                                    role_giver(chat_id,user_id)
-                                    break
-                        except Exception:
-                            pass
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    new_members = message.new_chat_members
 
+    for new_member in new_members:
+        if user_id != new_member.id:
+            update_invites(chat_id, user_id, new_member, "add")
+
+def update_invites(chat_id, user_id, new_member, point):
+    current_time = datetime.now()
+    da = invites.find_one({'chat_id': chat_id, 'user_id': user_id})
+    if da is None:
+        da = {}
+    users = da.get('users', {})
+    try:
+        us = bot2.get_users(user_id)
+        username = us.username
+        first_name = us.first_name
+    except Exception:
+        pass
+    
+    users[str(new_member.id)] = {
+        'username': new_member.username,
+        'first_name': new_member.first_name,
+        'timestamp': current_time
+    }
+
+    status = str(new_member.status)
+
+    common_update_data = {
+        '$set': {'users': users,'timestamp':current_time}
+    }
+    if first_name is not None:
+        common_update_data['$set']['username'] = username
+        common_update_data['$set']['first_name'] = first_name
+    if status in ["UserStatus.LAST_WEEK", "UserStatus.ONLINE", "UserStatus.OFFLINE", "UserStatus.RECENTLY"]:
+        specific_update_data = {
+            '$inc': {'total_count': 1, 'regular_count': 1, 'left_count': 0, 'fake_count': 0, 'g_count': 1},
+            '$set': {'users': users}
+        }
+        if point == "invite":
+            daa = owners.find_one({'chat_id':chat_id})
+            if daa and 'send_msg' in daa and daa['send_msg'] is True:
+                bot2.send_message(chat_id,f"<a href='tg://user?id={user_id}'>{first_name}</a> invites <a href='tg://user?id={new_member.id}'>{new_member.first_name}</a>")
+            specific_update_data['$inc']['invi_count'] = 1
+        update_data = {**specific_update_data, **common_update_data}
+        role_giver(chat_id, user_id)
+    else:
+        update_data = {
+            '$inc': {'total_count': 1, 'fake_count': 1, 'regular_count': 0, 'left_count': 0, 'g_count': 0},
+            '$set': {'users': users}
+        }
+
+    invites.update_one(
+        {'chat_id': chat_id, 'user_id': user_id},
+        update_data,
+        upsert=True
+    )
+    if point == "add" or point == "invite":
+        owners.update_one({'chat_id': chat_id}, {'$inc': {'user_count': 1, f'{point}_count': 1}})
+    
 @bot2.on_message(filters.command(['me']))
 def list_roles(client, message):
     chat_id = message.chat.id
