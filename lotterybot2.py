@@ -973,7 +973,7 @@ def create_invite_link(client, message):
     chat_id = message.chat.id
     bot_member = bot2.get_chat_member(chat_id, 6074378866)
     if bot_member.privileges.can_invite_users is False:
-        bot2.send_message(chat_id,"❌ Insufficient permissions for the robot, please grant at least the following admin permissions:\n- Invite members via link")
+        bot2.send_message(chat_id,"❌ 机器人权限不足，请至少授予以下管理员权限：\n通过链接邀请成员")
         return
     
     user_id = message.from_user.id
@@ -984,10 +984,10 @@ def create_invite_link(client, message):
             link = data['invite_link']
             invite_count = data['invi_count']
             
-            message_text = f"""🔗 <a href='tg://user?id={user_id}'>{first_name}</a> Your exclusive link:
-<code>{link}</code> (Click to copy)
+            message_text = f"""🔗 <a href='tg://user?id={user_id}'>{first_name}</a> 您的专属邀请链接是：
+<code>{link}</code> (点击复制)
 
-👉 Current Total Invitations {invite_count} Person ."""
+👉 当前邀请数量为{invite_count}人。"""
             bot2.send_message(chat_id, message_text)
     else:
             link = bot2.create_chat_invite_link(
@@ -1060,7 +1060,7 @@ def update_invites(chat_id, user_id, new_member, point):
         if point == "invite":
             daa = owners.find_one({'chat_id':chat_id})
             if daa and 'send_msg' in daa and daa['send_msg'] is True:
-                bot2.send_message(chat_id,f"<a href='tg://user?id={user_id}'>{first_name}</a> invites <a href='tg://user?id={new_member.id}'>{new_member.first_name}</a>")
+                bot2.send_message(chat_id,f"<a href='tg://user?id={user_id}'>{first_name}</a> 邀请了 <a href='tg://user?id={new_member.id}'>{new_member.first_name}</a>")
             specific_update_data['$inc']['invi_count'] = 1
         update_data = {**specific_update_data, **common_update_data}
         role_giver(chat_id, user_id)
