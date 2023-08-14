@@ -970,7 +970,7 @@ def remove_all_roles(client, message):
         chat_id, f"在此聊天中的所有用户都已被移除 {role_name} 角色", reply_to_message_id=message.id)
 
 
-@bot.on_message(filters.command(['invites']))
+@bot2.on_message(filters.command(['invites']))
 def invites_finder(client, message):
     chat_id = message.chat.id
     if len(message.text) == 8:
@@ -987,7 +987,7 @@ def invites_finder(client, message):
             text = f"User <a href='tg://user?id={user_id}'>{first_name}</a> currently have \n<b>{r_count}</b> invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake,{invi_count} link)"
         else:
             text = f"No data found for user <a href='tg://user?id={user_id}'>{first_name}</a>"
-        bot.send_message(chat_id, text)
+        bot2.send_message(chat_id, text)
     else:
         args = message.text.split()[1:]
         text = "Here the requested Data\n\n"
@@ -1010,9 +1010,9 @@ def invites_finder(client, message):
                 text += f"User <a href='tg://user?id={user_id}'>{first_name}</a> currently have \n<b>{r_count}</b> invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake,{invi_count} link)\n\n"
             else:
                 text += f"No data found for user <a href='tg://user?id={user_id}'>{first_name}</a>\n\n"
-        bot.send_message(chat_id, text)
+        bot2.send_message(chat_id, text)
 
-@bot.on_message(filters.command(['topinvites']))
+@bot2.on_message(filters.command(['topinvites']))
 def top_invites(client, message):
     chat_id = message.chat.id
     top_invites = collection.find(
@@ -1025,14 +1025,14 @@ def top_invites(client, message):
         r_count = invite['regular_count']
         f_count = invite['fake_count']
         l_count = invite['left_count']
-        member = bot.get_chat(user_id)
+        member = bot2.get_chat(user_id)
         first_name = member.first_name
         last_name = member.last_name
         response += f"{index + 1}. <a href='tg://user?id={user_id}'>{first_name} {last_name}</a> , <b>{r_count}</b> Invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake)\n"
     if response == "Top 10 Invites:\n\n":
         response = "No Data Found"
 
-    bot.send_message(chat_id, response)
+    bot2.send_message(chat_id, response)
 
 @bot2.on_message(filters.command(['link']) & filters.group)
 def create_invite_link(client, message):
