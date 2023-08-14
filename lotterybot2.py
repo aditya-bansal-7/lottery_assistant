@@ -980,18 +980,18 @@ def invites_finder(client, message):
             {'chat_id': chat_id, 'user_id': user_id})
         if inviter:
             invi_count = inviter.get('invi_count',0)
-            t_count = inviter['total_count']
-            r_count = inviter['regular_count']
-            f_count = inviter['fake_count']
-            l_count = inviter['left_count']
+            t_count = inviter.get('total_count',0)
+            r_count = inviter.get('regular_count',0)
+            f_count = inviter.get('fake_count',0)
+            l_count = inviter.get('left_count',0)
+
             text = f"User <a href='tg://user?id={user_id}'>{first_name}</a> currently have \n<b>{r_count}</b> invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake,{invi_count} link)"
         else:
             text = f"No data found for user <a href='tg://user?id={user_id}'>{first_name}</a>"
         bot2.send_message(chat_id, text)
     else:
-        args = message.text.split()[1:]
+        args = message.text.split(" ")[1:]
         text = "Here the requested Data\n\n"
-
         for user in args:
             try:
                 member = bot2.get_chat(user)
@@ -1003,14 +1003,16 @@ def invites_finder(client, message):
                 {'chat_id': chat_id, 'user_id': user_id})
             if inviter:
                 invi_count = inviter.get('invi_count',0)
-                t_count = inviter['total_count']
-                r_count = inviter['regular_count']
-                f_count = inviter['fake_count']
-                l_count = inviter['left_count']
+                t_count = inviter.get('total_count',0)
+                r_count = inviter.get('regular_count',0)
+                f_count = inviter.get('fake_count',0)
+                l_count = inviter.get('left_count',0)
                 text += f"User <a href='tg://user?id={user_id}'>{first_name}</a> currently have \n<b>{r_count}</b> invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake,{invi_count} link)\n\n"
             else:
                 text += f"No data found for user <a href='tg://user?id={user_id}'>{first_name}</a>\n\n"
         bot2.send_message(chat_id, text)
+
+
 
 @bot2.on_message(filters.command(['topinvites']))
 def top_invites(client, message):
@@ -1021,10 +1023,11 @@ def top_invites(client, message):
     response = "Top 10 Invites:\n\n"
     for index, invite in enumerate(top_invites):
         user_id = invite["user_id"]
-        t_count = invite['total_count']
-        r_count = invite['regular_count']
-        f_count = invite['fake_count']
-        l_count = invite['left_count']
+        invi_count = invite.get('invi_count',0)
+        t_count = invite.get('total_count',0)
+        r_count = invite.get('regular_count',0)
+        f_count = invite.get('fake_count',0)
+        l_count = invite.get('left_count',0)
         member = bot2.get_chat(user_id)
         first_name = member.first_name
         last_name = member.last_name
@@ -1033,6 +1036,7 @@ def top_invites(client, message):
         response = "No Data Found"
 
     bot2.send_message(chat_id, response)
+
 
 
 @bot2.on_message(filters.command(['link']) & filters.group)
