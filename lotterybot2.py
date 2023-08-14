@@ -1027,7 +1027,7 @@ def top_invites(client, message):
         member = bot2.get_chat(user_id)
         first_name = member.first_name
         last_name = member.last_name
-        response += f"{index + 1}. <a href='tg://user?id={user_id}'>{first_name} {last_name}</a> , <b>{r_count}</b> Invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake)\n"
+        response += f"{index + 1}. {first_name} {last_name} , <b>{r_count}</b> Invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake)\n"
     if response == "Top 10 Invites:\n\n":
         response = "No Data Found"
 
