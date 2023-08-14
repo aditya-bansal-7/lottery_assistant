@@ -525,6 +525,7 @@ def add_user_to_role(message,role_name,chat_id,msg2_id,msg2_chat_id):
         del user_status[message.chat.id]
 
 
+
 def remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id):
     markup = types2.ReplyKeyboardRemove()
     try:
@@ -603,7 +604,6 @@ def remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id):
                             continue
                 continue
             try:
-                bot2.start()
                 user_obj = bot2.get_chat(user)
                 user_id = user_obj.id
                 user_name = user_obj.username
@@ -619,20 +619,16 @@ def remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id):
                 roles.update_one({'chat_id': chat_id, 'user_id': user_id}, {'$pull': {'roles': role_name}})
                 roles.update_one({'chat_id':chat_id,'role_name':role_name},
                                 {'$inc':{'count':-1}},upsert=True)
-                bot2.stop()
 
             except Exception as e:
-                print(e)
                 bot2.send_message(message.chat.id,f"Unexpected Error Happen - {e}")
                 pass
         message_test += f"\n已在此聊天中被移除 {role_name} 角色"
         if "•" in message_test:
             bot2.delete_messages(msg2_chat_id, msg2_id)
             bot2.send_message(message.from_user.id, message_test, reply_markup=markup)
-
     except Exception as e:
-        print(e)
-        bot2.delete_message(msg2_chat_id, msg2_id)
+        bot2.delete_messages(msg2_chat_id, msg2_id)
         bot2.send_message(message.chat.id, "Got an error forward message is in beta please try again after some time", reply_markup=markup)
         pass
 
