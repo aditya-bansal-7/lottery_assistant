@@ -976,7 +976,7 @@ def invites_finder(client, message):
     if len(message.text) == 8:
         user_id = message.from_user.id
         first_name = message.from_user.first_name
-        inviter = collection.find_one(
+        inviter = invites.find_one(
             {'chat_id': chat_id, 'user_id': user_id})
         if inviter:
             invi_count = inviter.get('invi_count',0)
@@ -994,12 +994,12 @@ def invites_finder(client, message):
 
         for user in args:
             try:
-                member = bot.get_chat(user)
+                member = bot2.get_chat(user)
             except Exception:
                 continue
             user_id = member.id
             first_name = member.first_name
-            inviter = collection.find_one(
+            inviter = invites.find_one(
                 {'chat_id': chat_id, 'user_id': user_id})
             if inviter:
                 invi_count = inviter.get('invi_count',0)
@@ -1015,7 +1015,7 @@ def invites_finder(client, message):
 @bot2.on_message(filters.command(['topinvites']))
 def top_invites(client, message):
     chat_id = message.chat.id
-    top_invites = collection.find(
+    top_invites = invites.find(
         {"chat_id": chat_id}
     ).sort("regular_count", -1).limit(10)
     response = "Top 10 Invites:\n\n"
@@ -1033,6 +1033,7 @@ def top_invites(client, message):
         response = "No Data Found"
 
     bot2.send_message(chat_id, response)
+
 
 @bot2.on_message(filters.command(['link']) & filters.group)
 def create_invite_link(client, message):
