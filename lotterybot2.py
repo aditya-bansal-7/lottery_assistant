@@ -1086,15 +1086,15 @@ def members(client, message):
             user_id = data['user_id']
             update_invites(chat_id, user_id, message.new_chat_member.user, "invite")
 
-@bot2.on_message(filters.new_chat_members)
-def chatmember(client, message):
-    chat_id = message.chat.id
-    user_id = message.from_user.id
-    new_members = message.new_chat_members
+# @bot2.on_message(filters.new_chat_members)
+# def chatmember(client, message):
+#     chat_id = message.chat.id
+#     user_id = message.from_user.id
+#     new_members = message.new_chat_members
 
-    for new_member in new_members:
-        if user_id != new_member.id:
-            update_invites(chat_id, user_id, new_member, "add")
+#     for new_member in new_members:
+#         if user_id != new_member.id:
+#             update_invites(chat_id, user_id, new_member, "add")
 
 def update_invites(chat_id, user_id, new_member, point):
     current_time = datetime.now()
