@@ -1026,10 +1026,8 @@ def top_invites(client, message):
         l_count = invite.get('left_count',0)
         if r_count == 0:
             continue
-        member = bot2.get_chat(user_id)
-        first_name = member.first_name
-        last_name = member.last_name
-        response += f"{index + 1}. {first_name} {last_name} , <b>{r_count}</b> Invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake)\n"
+        first_name = invite['first_name']
+        response += f"{index + 1}. {first_name}, <b>{r_count}</b> Invites. (<b>{t_count}</b> Regular,<b> {l_count}</b> left,<b> {f_count}</b> fake)\n"
     if response == "Top 10 Invites:\n\n":
         response = "No Data Found"
 
