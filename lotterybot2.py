@@ -1072,6 +1072,23 @@ def create_invite_link(client, message):
             )
             owners.update_one({'chat_id':chat_id},{'$inc':{'link_count':1}},upsert=True)
 
+
+
+@bot2.on_message(filters.left_chat_member)
+def left_member(client, message):
+    chat_id = message.chat.id
+    left_member_id = message.left_chat_member.id
+    inviter = invites.find_one(
+        {'chat_id': chat_id, f'users.{left_member_id}': {'$exists': True}}
+    )
+    if inviter:
+        inviter_id = inviter['user_id']
+        invites.update_one(
+            {'chat_id': chat_id, 'user_id': inviter_id},
+            {'$inc': {'regular_count': -1, 'left_count': 1}
+             ,'$set':{f'users.{left_member_id}.left_time': datetime.now()}},
+        )
+
 @bot2.on_chat_member_updated()
 def members(client, message):
     chat_id = message.chat.id
