@@ -1024,6 +1024,8 @@ def top_invites(client, message):
         r_count = invite.get('regular_count',0)
         f_count = invite.get('fake_count',0)
         l_count = invite.get('left_count',0)
+        if r_count == 0:
+            continue
         member = bot2.get_chat(user_id)
         first_name = member.first_name
         last_name = member.last_name
