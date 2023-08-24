@@ -37,7 +37,7 @@ messages = db['messages']
 
 dices = db['dices']
 
-app = "not_set"
+app = "not"
 
 user_status = {}
 
