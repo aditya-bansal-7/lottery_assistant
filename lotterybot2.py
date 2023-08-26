@@ -468,6 +468,8 @@ def add_user_to_role(message,role_name,chat_id,msg2_id,msg2_chat_id):
                 del user_status[message.chat.id]
             return
         for user in username:
+            if user.startswith("\n"):
+                user = user[1:]
             if not user.startswith("@"):
                 for entity in message.entities:
                     if str(entity.type) == "MessageEntityType.TEXT_MENTION":
@@ -583,6 +585,8 @@ def remove_user_to_role(message, role_name, chat_id,msg2_id,msg2_chat_id):
             return
 
         for user in username:
+            if user.startswith("\n"):
+                user = user[1:]
             if not user.startswith("@"):
                 for entity in message.entities:
                     if str(entity.type) == "MessageEntityType.TEXT_MENTION":
@@ -746,6 +750,8 @@ def roles_given(client, message):
         #User -  
         message_test = "用户-\n"
         for user in username:
+            if user.startswith("\n"):
+                user = user[1:]
             if not user.startswith("@"):
                 for entity in message.entities:
                     if str(entity.type) == "MessageEntityType.TEXT_MENTION":
@@ -866,6 +872,8 @@ def remove_roles(client, message):
         # User -
         message_test = "用户-\n"
         for user in username:
+            if user.startswith("\n"):
+                user = user[1:]
             if not user.startswith("@"):
                 for entity in message.entities:
                     if str(entity.type) == "MessageEntityType.TEXT_MENTION":
