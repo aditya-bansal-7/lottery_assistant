@@ -769,7 +769,7 @@ def roles_given(client, message):
                                 message_test += f" • {user}\n"
                                 roles.update_one({'chat_id': chat_id, 'user_id': usser_id},
                                                 {'$addToSet': {'roles': role_name},
-                                                '$set': {'first_name': usser_name}}, upsert=True)
+                                                '$set': {'first_name': name}}, upsert=True)
                                 roles.update_one({'chat_id':chat_id,'role_name':role_name},
                              {'$inc':{'count':1}},upsert=True)
                         except Exception:
