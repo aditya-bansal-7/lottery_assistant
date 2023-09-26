@@ -1,4 +1,4 @@
-# BNsl Boy 
+# BNsl
 from pymongo import MongoClient
 from pyrogram import Client , filters ,enums 
 import pyrogram.types as types2
@@ -12,6 +12,8 @@ API_ID = '1149607'
 API_HASH = 'd11f615e85605ecc85329c94cf2403b5'
 
 bot2 = Client("my_teszxascxt", api_id=API_ID, api_hash=API_HASH,bot_token="6074378866:AAFTSXBqm0zYC2YFgIkbH8br5JeBOMjW3hg")
+
+GG = {}
 
 password = 'VeJ7EH5TK13U4IQg'
 cluster_url = 'mongodb+srv://bnslboy:' + \
